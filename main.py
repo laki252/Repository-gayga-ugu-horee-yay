@@ -16,8 +16,8 @@ COOKIES_TXT_PATH = "cookies.txt"
 API_ID = int(os.environ.get("API_ID", "29169428"))
 API_HASH = os.environ.get("API_HASH", "55742b16a85aac494c7944568b5507e5")
 BOT1_TOKEN = os.environ.get("BOT1_TOKEN", "8303813448:AAEy5txrGzcK8o_0AhX-40YudvdEa0hpgNY")
-BOT2_TOKEN = os.environ.get("BOT2_TOKEN", "7669714776:AAEzSzAusOsKGzGknKcD2I1dX7Q1pUFi6rQ")
-WEBHOOK_BASE = os.environ.get("WEBHOOK_BASE", "https://your-public-domain.example.com")
+BOT2_TOKEN = os.environ.get("BOT2_TOKEN", "7522782488:AAH1OLPWbaiDaPiKJSQJ6n1Z1FeTOdtub8o")
+WEBHOOK_BASE = os.environ.get("WEBHOOK_BASE", "https://repository-gayga-ugu-horee-yay.onrender.com")
 PORT = int(os.environ.get("PORT", 8080))
 
 DOWNLOAD_PATH = "downloads"
@@ -292,7 +292,7 @@ def anti_spam_filter(message):
             return
         text = message.text or ""
         if (
-            len(text) > 120
+            len(text) > 1000
             or re.search(r"https?://", text)
             or "t.me/" in text
             or re.search(r"@\w+", text)
