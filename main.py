@@ -304,11 +304,11 @@ def anti_spam_filter(message):
 def set_bot2_info():
     cmds = [
         telebot.types.BotCommand("start", "Start the bot"),
-        telebot.types.BotCommand("help", "Show help message")
+        
     ]
     try:
         telebot_bot.set_my_commands(cmds)
-        telebot_bot.set_my_description("To keep your Telegram groups clean, focused, and free from spam or excessively long messages that disrupt conversations, use this bot.")
+        
     except Exception:
         logging.exception("Failed to set bot info")
 
