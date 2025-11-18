@@ -60,7 +60,7 @@ YDL_OPTS_DEFAULT = {
 
 SUPPORTED_DOMAINS = [
     "youtube.com", "youtu.be", "facebook.com", "fb.watch", "pin.it",
-    "x.com", "tiktok.com", "snapchat.com", "instagram.com"
+    "x.com", "tiktok.com", "snapchat.com","https://", "instagram.com"
 ]
 
 pyro_client = Client("video_downloader_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT1_TOKEN)
