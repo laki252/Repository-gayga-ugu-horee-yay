@@ -11,9 +11,6 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, 
 from pyrogram.enums import ChatAction, ChatMemberStatus
 import yt_dlp
 import telebot
-from motor.motor_asyncio import AsyncIOMotorClient
-from datetime import datetime, timedelta
-from urllib.parse import urlparse
 
 COOKIES_TXT_PATH = "cookies.txt"
 if not os.path.exists(COOKIES_TXT_PATH):
@@ -25,17 +22,6 @@ BOT1_TOKEN = os.environ.get("BOT1_TOKEN", "8362188818:AAFLE14YbizBu1v7on1tQAOuqs
 BOT2_TOKEN = os.environ.get("BOT2_TOKEN", "7522782488:AAH1OLPWbaiDaPiKJSQJ6n1Z1FeTOdtub8o")
 WEBHOOK_BASE = os.environ.get("WEBHOOK_BASE", "https://repository-gayga-ugu-horee-yay.onrender.com")
 PORT = int(os.environ.get("PORT", 8080))
-
-DB_USER = "lakicalinuur"
-DB_PASSWORD = "DjReFoWZGbwjry8K"
-DB_APPNAME = "SpeechBot"
-MONGO_URI = f"mongodb+srv://{DB_USER}:{DB_PASSWORD}@cluster0.n4hdlxk.mongodb.net/?retryWrites=true&w=majority&appName={DB_APPNAME}"
-
-mongo_client = AsyncIOMotorClient(MONGO_URI)
-db = mongo_client.speechbot_db
-
-USERS_COLLECTION = db.users
-DOWNLOADS_COLLECTION = db.downloads
 
 REQUIRED_CHANNEL = "@ok_fans"
 
@@ -82,8 +68,15 @@ flask_app = Flask(__name__)
 telebot_bot = telebot.TeleBot(BOT2_TOKEN)
 
 active_downloads = 0
-queue = asyncio.Queue()
-lock = asyncio.Lock()
+queue = None
+lock = None
+
+async def ensure_primitives():
+    global queue, lock
+    if queue is None:
+        queue = asyncio.Queue()
+    if lock is None:
+        lock = asyncio.Lock()
 
 async def get_bot_username(client):
     global BOT_USERNAME
@@ -91,8 +84,7 @@ async def get_bot_username(client):
         try:
             me = await client.get_me()
             BOT_USERNAME = me.username
-        except Exception as e:
-            logging.exception(e)
+        except Exception:
             return "Bot"
     return BOT_USERNAME
 
@@ -261,138 +253,98 @@ async def download_audio_only(url: str, bot_username: str):
         logging.exception(e)
         return None
 
-async def register_user(user_id, username, first_name):
-    await USERS_COLLECTION.update_one(
-        {"_id": user_id},
-        {"$set": {"username": username, "first_name": first_name, "last_active": datetime.utcnow()},
-         "$setOnInsert": {"join_date": datetime.utcnow()}},
-        upsert=True
-    )
-
-def get_domain(url):
-    try:
-        hostname = urlparse(url).netloc
-        if hostname.startswith("www."):
-            hostname = hostname[4:]
-        return hostname.replace("youtu.be", "youtube.com").replace("fb.watch", "facebook.com").replace("pin.it", "pinterest.com").replace("x.com", "twitter.com")
-    except:
-        return "Unknown"
-
-async def record_download(user_id, url):
-    domain = get_domain(url)
-    await DOWNLOADS_COLLECTION.insert_one({
-        "user_id": user_id,
-        "url": url,
-        "domain": domain,
-        "timestamp": datetime.utcnow()
-    })
-
-async def process_download(client, message, url):
-    global active_downloads
-    await register_user(message.from_user.id, message.from_user.username, message.from_user.first_name)
+async def _download_worker(client, message, url):
     bot_username = await get_bot_username(client)
+    try:
+        await client.send_chat_action(message.chat.id, ChatAction.TYPING)
+    except:
+        pass
+    result = await download_video(url, bot_username)
+    if isinstance(result, tuple) and result[0] == "TOO_LONG":
+        limit = result[1]
+        minutes = int(limit / 60)
+        try:
+            await message.reply(f"Cannot download videos longer than {minutes} minutes 👍")
+        except:
+            pass
+    elif result is None:
+        try:
+            await message.reply("Cannot download this video 👍")
+        except:
+            pass
+    elif result == "ERROR":
+        try:
+            await message.reply("An error occurred, please try again 😓")
+        except:
+            pass
+    else:
+        caption, file_path, width, height, duration, thumb = result
+        try:
+            await client.send_chat_action(message.chat.id, ChatAction.UPLOAD_VIDEO)
+        except:
+            pass
+        kwargs = {"video": file_path, "caption": caption, "supports_streaming": True}
+        if width: kwargs["width"] = int(width)
+        if height: kwargs["height"] = int(height)
+        if duration: kwargs["duration"] = int(float(duration))
+        if thumb and os.path.exists(thumb): kwargs["thumb"] = thumb
+        try:
+            await client.send_video(message.chat.id, **kwargs)
+        except Exception:
+            logging.exception("Sending video failed")
+        audio_result = await download_audio_only(url, bot_username)
+        if audio_result:
+            audio_caption, audio_path = audio_result
+            try:
+                await client.send_chat_action(message.chat.id, ChatAction.UPLOAD_AUDIO)
+            except:
+                pass
+            try:
+                await client.send_audio(
+                    message.chat.id,
+                    audio=audio_path,
+                    caption=audio_caption,
+                    title=os.path.splitext(os.path.basename(audio_path))[0],
+                    performer=f"Powered by @{bot_username}"
+                )
+            except Exception:
+                logging.exception("Sending audio failed")
+            if audio_path and os.path.exists(audio_path):
+                try:
+                    os.remove(audio_path)
+                except:
+                    pass
+        for f in [file_path, thumb]:
+            if f and os.path.exists(f):
+                try:
+                    os.remove(f)
+                except:
+                    pass
+
+async def download_task_wrapper(client, message, url):
+    global active_downloads
+    await ensure_primitives()
     async with lock:
         active_downloads += 1
     try:
-        await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-        result = await download_video(url, bot_username)
-        if isinstance(result, tuple) and result[0] == "TOO_LONG":
-            limit = result[1]
-            minutes = int(limit / 60)
-            await message.reply(f"Cannot download videos longer than {minutes} minutes 👍")
-        elif result is None:
-            await message.reply("Cannot download this video 👍")
-        elif result == "ERROR":
-            await message.reply("An error occurred, please try again 😓")
-        else:
-            caption, file_path, width, height, duration, thumb = result
-            await client.send_chat_action(message.chat.id, ChatAction.UPLOAD_VIDEO)
-            kwargs = {"video": file_path, "caption": caption, "supports_streaming": True}
-            if width: kwargs["width"] = int(width)
-            if height: kwargs["height"] = int(height)
-            if duration: kwargs["duration"] = int(float(duration))
-            if thumb and os.path.exists(thumb): kwargs["thumb"] = thumb
-            await client.send_video(message.chat.id, **kwargs)
-            await record_download(message.from_user.id, url)
-            audio_result = await download_audio_only(url, bot_username)
-            if audio_result:
-                audio_caption, audio_path = audio_result
-                try:
-                    await client.send_chat_action(message.chat.id, ChatAction.UPLOAD_AUDIO)
-                except:
-                    pass
-                try:
-                    await client.send_audio(
-                        message.chat.id,
-                        audio=audio_path,
-                        caption=audio_caption,
-                        title=os.path.splitext(os.path.basename(audio_path))[0],
-                        performer=f"Powered by @{bot_username}"
-                    )
-                except Exception:
-                    logging.exception("Sending audio failed")
-                if audio_path and os.path.exists(audio_path):
-                    try:
-                        os.remove(audio_path)
-                    except:
-                        pass
-            for f in [file_path, thumb]:
-                if f and os.path.exists(f):
-                    try:
-                        os.remove(f)
-                    except:
-                        pass
+        await _download_worker(client, message, url)
     finally:
         async with lock:
             active_downloads -= 1
         await start_next_download()
 
 async def start_next_download():
+    await ensure_primitives()
+    global active_downloads
     async with lock:
         while not queue.empty() and active_downloads < MAX_CONCURRENT_DOWNLOADS:
             client, message, url = await queue.get()
-            asyncio.create_task(process_download(client, message, url))
-
-async def get_bot_statistics():
-    now = datetime.utcnow()
-    last_day = now - timedelta(days=1)
-    last_week = now - timedelta(weeks=1)
-    last_month = now - timedelta(days=30)
-    total_users = await USERS_COLLECTION.count_documents({})
-    total_downloads = await DOWNLOADS_COLLECTION.count_documents({})
-    active_users_last_day = await USERS_COLLECTION.count_documents({"last_active": {"$gte": last_day}})
-    active_users_last_week = await USERS_COLLECTION.count_documents({"last_active": {"$gte": last_week}})
-    active_users_last_month = await USERS_COLLECTION.count_documents({"last_active": {"$gte": last_month}})
-    pipeline = [
-        {"$group": {"_id": "$domain", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-        {"$limit": 5}
-    ]
-    most_downloaded_sites_cursor = DOWNLOADS_COLLECTION.aggregate(pipeline)
-    most_downloaded_sites = await most_downloaded_sites_cursor.to_list(length=5)
-    most_downloads_text = ""
-    for item in most_downloaded_sites:
-        most_downloads_text += f"• {item['_id']}: {item['count']} times\n"
-    if not most_downloads_text:
-        most_downloads_text = "No downloads recorded yet."
-    return (
-        f"📊 **Bot Statistics** 📊\n\n"
-        f"**USERS:**\n"
-        f"• Total Users: **{total_users:,}**\n"
-        f"• Active (Last Month): **{active_users_last_month:,}**\n"
-        f"• Active (Last Week): **{active_users_last_week:,}**\n"
-        f"• Active (Last Day): **{active_users_last_day:,}**\n\n"
-        f"**DOWNLOADS:**\n"
-        f"• Total Downloads: **{total_downloads:,}**\n\n"
-        f"**Most downloaded sites:**\n"
-        f"{most_downloads_text}"
-    )
+            asyncio.create_task(download_task_wrapper(client, message, url))
 
 @pyro_client.on_message(filters.private & filters.command("start"))
 async def start(client, message: Message):
     if not await ensure_joined(client, message):
         return
-    await register_user(message.from_user.id, message.from_user.username, message.from_user.first_name)
     await message.reply(
         "👋 Hello!\n"
         "Send me a video link from the supported sites.\n\n"
@@ -405,13 +357,6 @@ async def start(client, message: Message):
         "• Instagram"
     )
 
-@pyro_client.on_message(filters.private & filters.command("status"))
-async def status_command(client, message: Message):
-    if not await ensure_joined(client, message):
-        return
-    stats = await get_bot_statistics()
-    await message.reply(stats)
-
 @pyro_client.on_message(filters.private & filters.text)
 async def handle_link(client, message: Message):
     if not await ensure_joined(client, message):
@@ -420,10 +365,10 @@ async def handle_link(client, message: Message):
     if not any(domain in url.lower() for domain in SUPPORTED_DOMAINS):
         await message.reply("Please send a valid video link 👍")
         return
-    await register_user(message.from_user.id, message.from_user.username, message.from_user.first_name)
+    await ensure_primitives()
     async with lock:
         if active_downloads < MAX_CONCURRENT_DOWNLOADS:
-            asyncio.create_task(process_download(client, message, url))
+            asyncio.create_task(download_task_wrapper(client, message, url))
         else:
             await queue.put((client, message, url))
 
