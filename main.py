@@ -346,8 +346,8 @@ async def start(client, message: Message):
     if not await ensure_joined(client, message):
         return
     await message.reply(
-        "👋 Hello!\n"
-        "Send me a video link from the supported sites.\n\n"
+        "👋 Salaam!\n"
+        "Send me a video link from the supported sites\n\n"
         "Supported sites:\n"
         "• YouTube\n"
         "• Facebook\n"
