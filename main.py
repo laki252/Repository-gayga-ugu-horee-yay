@@ -16,7 +16,7 @@ COOKIES_TXT_PATH = "cookies.txt"
 API_ID = int(os.environ.get("API_ID", "29169428"))
 API_HASH = os.environ.get("API_HASH", "55742b16a85aac494c7944568b5507e5")
 BOT1_TOKEN = os.environ.get("BOT1_TOKEN", "8303813448:AAEVDY4a5fzP7pT-Yq-yPfdkzU0EsO87Z1c")
-BOT2_TOKEN = os.environ.get("BOT2_TOKEN", "7522782488:AAH1OLPWbaiDaPiKJSQJ6n1Z1FeTOdtub8o")
+BOT2_TOKEN = os.environ.get("BOT2_TOKEN", "8226637132:AAEEIjwkdJE6E4QPVH76unipCOQdKMJmeq0")
 WEBHOOK_BASE = os.environ.get("WEBHOOK_BASE", "https://repository-gayga-ugu-horee-yay-673r.onrender.com")
 PORT = int(os.environ.get("PORT", 8080))
 
