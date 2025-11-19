@@ -247,7 +247,7 @@ async def download_audio_only(url: str, bot_username: str):
                 return info_dl, filename
         info_dl, filename = await loop.run_in_executor(None, download_sync)
         title = info_dl.get("title") or "Audio"
-        caption = f"🎧 Audio only\n\n{title}"
+        #caption = f"🎧 Audio only\n\n{title}"
         return caption, filename
     except Exception as e:
         logging.exception(e)
@@ -346,7 +346,7 @@ async def start(client, message: Message):
     if not await ensure_joined(client, message):
         return
     await message.reply(
-        "👋 Salaam! Send me  your video link  to download "
+        "👋 Salaam! Send me  your video link to download"
     
     )
 
