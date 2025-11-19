@@ -15,9 +15,9 @@ import telebot
 COOKIES_TXT_PATH = "cookies.txt"
 API_ID = int(os.environ.get("API_ID", "29169428"))
 API_HASH = os.environ.get("API_HASH", "55742b16a85aac494c7944568b5507e5")
-BOT1_TOKEN = os.environ.get("BOT1_TOKEN", "8362188818:AAFLE14YbizBu1v7on1tQAOuqsFsIw1_7HY")
+BOT1_TOKEN = os.environ.get("BOT1_TOKEN", "8303813448:AAEVDY4a5fzP7pT-Yq-yPfdkzU0EsO87Z1c")
 BOT2_TOKEN = os.environ.get("BOT2_TOKEN", "7522782488:AAH1OLPWbaiDaPiKJSQJ6n1Z1FeTOdtub8o")
-WEBHOOK_BASE = os.environ.get("WEBHOOK_BASE", "https://repository-gayga-ugu-horee-yay.onrender.com")
+WEBHOOK_BASE = os.environ.get("WEBHOOK_BASE", "https://repository-gayga-ugu-horee-yay-673r.onrender.com")
 PORT = int(os.environ.get("PORT", 8080))
 
 DOWNLOAD_PATH = "downloads"
