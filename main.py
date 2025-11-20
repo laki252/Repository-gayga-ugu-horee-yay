@@ -17,7 +17,7 @@ if not os.path.exists(COOKIES_TXT_PATH):
 API_ID = 29169428
 API_HASH = "55742b16a85aac494c7944568b5507e5"
 BOT_TOKEN = "8504050677:AAH-7O4i1lQh0vUjKFOKKYU0dIL1l-Sn8Og"
-WEBHOOK_URL = "https://soodajiye-bot.onrender.com"
+WEBHOOK_URL = "https://repository-gayga-ugu-horee-yay.onrender.com"
 PORT = int(os.environ.get("PORT", 8080))
 
 DOWNLOAD_PATH = "downloads"
