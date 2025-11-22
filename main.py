@@ -346,7 +346,7 @@ async def start(client, message: Message):
     if not await ensure_joined(client, message):
         return
     await message.reply(
-        "👋 Salaam! Send me  your video link to download"
+        "👋 Hey! Send me your video link so I can download"
     
     )
 
